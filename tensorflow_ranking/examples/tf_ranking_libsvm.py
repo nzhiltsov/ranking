@@ -279,9 +279,10 @@ def train_and_eval():
                                                 FLAGS.list_size)
   vali_input_fn, vali_hook = get_eval_inputs(features_vali, labels_vali)
 
-  features_test, labels_test = load_libsvm_data(FLAGS.test_path,
-                                                FLAGS.list_size)
-  test_input_fn, test_hook = get_eval_inputs(features_test, labels_test)
+  if FLAGS.test_path:
+      features_test, labels_test = load_libsvm_data(FLAGS.test_path,
+                                                    FLAGS.list_size)
+      test_input_fn, test_hook = get_eval_inputs(features_test, labels_test)
 
   def _train_op_fn(loss):
     """Defines train op used in ranking head."""
@@ -305,9 +306,11 @@ def train_and_eval():
       config=tf.estimator.RunConfig(
           FLAGS.output_dir, save_checkpoints_steps=1000))
 
+  early_stop = tf.contrib.estimator.stop_if_no_decrease_hook(estimator, 'loss', 2)
+
   train_spec = tf.estimator.TrainSpec(
       input_fn=train_input_fn,
-      hooks=[train_hook],
+      hooks=[train_hook, early_stop],
       max_steps=FLAGS.num_train_steps)
 
   # Export the model
@@ -320,10 +323,10 @@ def train_and_eval():
 
     return  tf.estimator.export.build_parsing_serving_input_receiver_fn(feature_spec)()
 
-  # exporter = tf.estimator.BestExporter(
-  #     name="best_exporter",
-  #     serving_input_receiver_fn=serving_input_receiver_fn,
-  #     exports_to_keep=5)
+  exporter = tf.estimator.BestExporter(
+      name="best_exporter",
+      serving_input_receiver_fn=serving_input_receiver_fn,
+      exports_to_keep=1)
 
   vali_spec = tf.estimator.EvalSpec(
       input_fn=vali_input_fn,
@@ -331,16 +334,17 @@ def train_and_eval():
       steps=1,
       start_delay_secs=0,
       throttle_secs=10,
-    # exporters=exporter
+    exporters=[exporter]
   )
 
   # Train and validate
   tf.estimator.train_and_evaluate(estimator, train_spec, vali_spec)
 
-  estimator.export_savedmodel(FLAGS.output_dir + '/export', serving_input_receiver_fn)
+  # estimator.export_savedmodel(FLAGS.output_dir + '/export', serving_input_receiver_fn)
 
   # Evaluate on the test data.
-  estimator.evaluate(input_fn=test_input_fn, hooks=[test_hook])
+  if FLAGS.test_path:
+    estimator.evaluate(input_fn=test_input_fn, hooks=[test_hook])
 
 
 def main(_):
