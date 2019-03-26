@@ -309,15 +309,35 @@ def train_and_eval():
       input_fn=train_input_fn,
       hooks=[train_hook],
       max_steps=FLAGS.num_train_steps)
+
+  # Export the model
+  def serving_input_receiver_fn():
+
+    feature_names = ["{}".format(i + 1) for i in range(FLAGS.num_features)]
+    feature_columns = [tf.feature_column.numeric_column(
+          name, shape=(1,), default_value=0.0) for name in feature_names]
+    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
+
+    return  tf.estimator.export.build_parsing_serving_input_receiver_fn(feature_spec)()
+
+  # exporter = tf.estimator.BestExporter(
+  #     name="best_exporter",
+  #     serving_input_receiver_fn=serving_input_receiver_fn,
+  #     exports_to_keep=5)
+
   vali_spec = tf.estimator.EvalSpec(
       input_fn=vali_input_fn,
       hooks=[vali_hook],
       steps=1,
       start_delay_secs=0,
-      throttle_secs=30)
+      throttle_secs=10,
+    # exporters=exporter
+  )
 
   # Train and validate
   tf.estimator.train_and_evaluate(estimator, train_spec, vali_spec)
+
+  estimator.export_savedmodel(FLAGS.output_dir + '/export', serving_input_receiver_fn)
 
   # Evaluate on the test data.
   estimator.evaluate(input_fn=test_input_fn, hooks=[test_hook])
