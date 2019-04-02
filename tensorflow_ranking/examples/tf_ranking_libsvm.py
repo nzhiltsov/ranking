@@ -316,7 +316,7 @@ def train_and_eval():
   # Export the model
   def serving_input_receiver_fn():
     features_placeholder = {
-        k: tf.placeholder(v.dtype, v.shape) for k, v in six.iteritems(features)
+        k: tf.placeholder(v.dtype, (1,None)) for k, v in six.iteritems(features)
     }
 
     return  tf.estimator.export.build_raw_serving_input_receiver_fn(features_placeholder)()
