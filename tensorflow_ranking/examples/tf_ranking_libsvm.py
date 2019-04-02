@@ -315,13 +315,11 @@ def train_and_eval():
 
   # Export the model
   def serving_input_receiver_fn():
+    features_placeholder = {
+        k: tf.placeholder(v.dtype, v.shape) for k, v in six.iteritems(features)
+    }
 
-    feature_names = ["{}".format(i + 1) for i in range(FLAGS.num_features)]
-    feature_columns = [tf.feature_column.numeric_column(
-          name, shape=(1,), default_value=0.0) for name in feature_names]
-    feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
-
-    return  tf.estimator.export.build_parsing_serving_input_receiver_fn(feature_spec)()
+    return  tf.estimator.export.build_raw_serving_input_receiver_fn(features_placeholder)()
 
   exporter = tf.estimator.BestExporter(
       name="best_exporter",
