@@ -314,7 +314,7 @@ def train_and_eval():
       config=tf.estimator.RunConfig(
           FLAGS.output_dir, save_checkpoints_steps=1000))
 
-  early_stop = tf.contrib.estimator.stop_if_no_decrease_hook(estimator, 'loss', 2)
+  early_stop = tf.contrib.estimator.stop_if_no_increase_hook(estimator, 'metric/ndcg@1', 1000)
 
   train_spec = tf.estimator.TrainSpec(
       input_fn=train_input_fn,
