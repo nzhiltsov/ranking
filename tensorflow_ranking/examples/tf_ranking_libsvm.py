@@ -67,6 +67,8 @@ import numpy as np
 import six
 import tensorflow as tf
 import tensorflow_ranking as tfr
+from progressbar import ProgressBar
+import gzip
 
 flags.DEFINE_string("train_path", None, "Input file path used for training.")
 flags.DEFINE_string("vali_path", None, "Input file path used for validation.")
@@ -139,28 +141,34 @@ def load_libsvm_data(path, list_size):
   label_list = []
   total_docs = 0
   discarded_docs = 0
-  with open(path, "rt") as f:
-    for line in f:
-      qid, features, label = _parse_line(line)
-      if qid not in qid_to_index:
-        # Create index and allocate space for a new query.
-        qid_to_index[qid] = len(qid_to_index)
-        qid_to_ndoc[qid] = 0
-        for k in feature_map:
-          feature_map[k].append(np.zeros([list_size, 1], dtype=np.float32))
-        label_list.append(np.ones([list_size], dtype=np.float32) * -1.)
-      total_docs += 1
-      batch_idx = qid_to_index[qid]
-      doc_idx = qid_to_ndoc[qid]
-      qid_to_ndoc[qid] += 1
-      # Keep the first 'list_size' docs only.
-      if doc_idx >= list_size:
-        discarded_docs += 1
-        continue
-      for k, v in six.iteritems(features):
-        assert k in feature_map, "Key {} not founded in features.".format(k)
-        feature_map[k][batch_idx][doc_idx, 0] = v
-      label_list[batch_idx][doc_idx] = label
+  with open(path, 'rt') as f:
+      for row_num, _ in enumerate(f, 1):
+          pass
+
+  with ProgressBar(maxval=row_num) as progress_bar:
+      with open(path, "rt") as f:
+        for line in f:
+          qid, features, label = _parse_line(line)
+          if qid not in qid_to_index:
+            # Create index and allocate space for a new query.
+            qid_to_index[qid] = len(qid_to_index)
+            qid_to_ndoc[qid] = 0
+            for k in feature_map:
+              feature_map[k].append(np.zeros([list_size, 1], dtype=np.float32))
+            label_list.append(np.ones([list_size], dtype=np.float32) * -1.)
+          total_docs += 1
+          batch_idx = qid_to_index[qid]
+          doc_idx = qid_to_ndoc[qid]
+          qid_to_ndoc[qid] += 1
+          # Keep the first 'list_size' docs only.
+          if doc_idx >= list_size:
+            discarded_docs += 1
+            continue
+          for k, v in six.iteritems(features):
+            assert k in feature_map, "Key {} not founded in features.".format(k)
+            feature_map[k][batch_idx][doc_idx, 0] = v
+          label_list[batch_idx][doc_idx] = label
+          progress_bar += 1
 
   tf.logging.info("Number of queries: {}".format(len(qid_to_index)))
   tf.logging.info("Number of documents in total: {}".format(total_docs))
